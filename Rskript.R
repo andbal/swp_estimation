@@ -172,7 +172,7 @@ for (i in unique(para$dataName))
         obs_names <- names(data_soil[[i]])[data2use]
         
         if (length(data2use)==0) {
-            obs <- data.frame(SWC = coredata(obs), SWP = as.numeric(NA)) # ????????
+            obs <- data.frame(SWC = coredata(obs), SWP = as.numeric(NA)) # ???????? why if data2use == 0, obs is not null????
         } else {
             swc <- grep("SWC", obs_names) 
             swp <- grep("SWP", obs_names)
@@ -187,15 +187,7 @@ for (i in unique(para$dataName))
         # df with NAs instead of NANs
         obs <- as.data.frame(apply(obs, 2, function(x) ifelse(is.nan(x), NA, x)))
         
-        # index of NAs values
-        ind_swc = which(is.na(obs$SWC))
-        ind_swp = which(is.na(obs$SWP))
-        
-        # if some NAs compute value with Van Genuchten model
-        swc[ind_swc] <- vanGenuchten_swc(psi = obs$SWP[ind_swc], alpha = alpha[k], n = n[k], 
-                                         theta_sat = theta_sat[k], theta_res = theta_res[k])
-        swp[ind_swp] <- vanGenuchten_swc(swc = obs$SWC[ind_swp], alpha = alpha[k], n = n[k], 
-                                         theta_sat = theta_sat[k], theta_res = theta_res[k], inv = T)
+       
         
         # if not NAs rescale in proper range
         if(!all(is.na(obs$SWC))){
@@ -212,6 +204,21 @@ for (i in unique(para$dataName))
     }
     
     obs_all <- as.data.frame(obs_all[-1,])
+    
+    # index of NAs values
+    ind_swc = which(is.na(obs_all$SWC))
+    ind_swp = which(is.na(obs_all$SWP))
+    
+    ### But obs_all have alle the depths, how to solve?
+    for (k in 1:length(alpha)){
+    # if some NAs compute value with Van Genuchten model
+    if (all(is.na(obs_all$SWC)))    
+    obs_all$SWC[ind_swc] <- vanGenuchten_swc(psi = obs_all$SWP[ind_swc], alpha = alpha[k], n = n[k], 
+                                     theta_sat = theta_sat[k], theta_res = theta_res[k])
+    if (all(is.na(obs_all$SWP)))
+    obs_all$SWP[ind_swp] <- vanGenuchten_swc(swc = obs_all$SWC[ind_swp], alpha = alpha[k], n = n[k], 
+                                     theta_sat = theta_sat[k], theta_res = theta_res[k], inv = T)
+    }
     
     # colors <- as.character(para_i$depth)
     # colors <- gsub(pattern = c("0-5"), replacement = c("#999999"), x = colors)
