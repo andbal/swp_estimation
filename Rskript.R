@@ -1,31 +1,39 @@
-# Cloned from JOhannes Brenner script (github: JBrenn)
+# Cloned from Johannes Brenner script (github: JBrenn)
 # for MONALISA
 
-library(Helper4me)
+
+# Modified version of package can be found on:
+# https://github.com/andbal/DataBaseAlpEnvEURAC
+
+# Note:
+# - vanGenuchten_swc() is a modified version of FUN implemented in "DataBaseAlpEnvEURAC"
+#                      to support also model inversion (reconstruct SWP from SWC)
+
+library(Helper4me)  # https://github.com/JBrenn/Helper4me
 library(zoo)
 library(chron)
-library(dygraphs)
+library(dygraphs)   # facilities for charting time-series data
 
-library(soilwater)
+library(soilwater)  # formulas of soil water retention or conductivity curve (E.Cordano)
 library(ggplot2)
-library(gtable)
-library(ggExtra)
-library(gridExtra)
-library(grid)
+library(gtable)     # make it easier to work with "tables" of "grobs" (-> grid object)
+library(ggExtra)    # enhance 'ggplot2', add marginal histograms/boxplots/density plots
+library(gridExtra)  # functions to work with "grid" graphics, notably to arrange multiple grid-based plots on a page, and draw tables.
+library(grid)       # enhance base graphics
 
-library(AnalyseGeotop)
-library(DataBaseAlpEnvEURAC)
-# 
-# # SMC / SWP data  
-# 
+library(AnalyseGeotop)          # https://github.com/JBrenn/AnalyseGEOtop
+library(DataBaseAlpEnvEURAC)    # https://github.com/JBrenn/DataBaseAlpEnvEURAC
+source('~/GitHub/AnalyseGEOtop/R/Geotop_VisSoilWaterRet_gg.R')
+
+data_soil <- list()
+
+### SMC / SWP read data  
+
 # # read data Arduino
-# wpath <- "/media/alpenv/Projekte/MONALISA/04_Daten & Ergebnisse/09_Pedotranfer_Function/Data_for_Johannes/"
-# 
+# wpath <- "H:/Projekte/MONALISA/04_Daten & Ergebnisse/09_Pedotranfer_Function/Data_for_Johannes/"
 # dpath <- file.path(wpath,"data")
-# 
 # files <- dir(dpath)
-# 
-# data_soil <- list()
+#
 # for (i in files)
 # {
 #   df <- read.csv(file.path(dpath,i), header = T, na.strings = c("NA","NaN"))
@@ -46,26 +54,27 @@ library(DataBaseAlpEnvEURAC)
 #   
 #   data_soil[[name]] <- data_zoo_h
 # }
-# 
-# # read data BERATUNGSRING
-# path2data  <- "/media/alpenv/Projekte/MONALISA/05_Arbeitsbereiche/BrJ/01_data/Beratungsring/"
-# prefix <- "BERAT"
+ 
+# read data BERATUNGSRING
+path2data  <- "H:/Projekte/MONALISA/05_Arbeitsbereiche/BrJ/01_data/Beratungsring/"
+prefix <- "BERAT"
 # station_nr <- c(3,7,9,12,14,17,30,37,39,52,70,84,103,105,106,125,169,171,172,174,176)
-# stations <- paste(prefix, formatC(station_nr, width = 4, flag = "0"), sep="")
-# 
-# for (i in stations)
-# {
-#   beratdat <- dB_getSWC(path2data = path2data, station = i, aggregation = "h", minVALUE = 0, maxVALUE = 100, write.csv = F)
-#   whichcol <- !apply(beratdat, 2, function(x) all(is.na(x)))
-#   if (any(whichcol)) {
-#     coredata(beratdat) <- coredata(beratdat)[,whichcol]
-#     data_soil[[i]] <- beratdat
-#     colnames(data_soil[[i]]) <- c("SWC_A_20", "SWC_A_40")
-#   } else {
-#     print(paste("no data for station", i))
-#   }
-# }
-# 
+station_nr <- c(3)
+stations <- paste(prefix, formatC(station_nr, width = 4, flag = "0"), sep="")
+
+for (i in stations)
+{
+  beratdat <- dB_getSWC(path2data = path2data, station = i, aggregation = "h", minVALUE = 0, maxVALUE = 100, write.csv = F)
+  whichcol <- !apply(beratdat, 2, function(x) all(is.na(x)))
+  if (any(whichcol)) {
+    coredata(beratdat) <- coredata(beratdat)[,whichcol]
+    data_soil[[i]] <- beratdat
+    colnames(data_soil[[i]]) <- c("SWC_A_20", "SWC_A_40")
+  } else {
+    print(paste("no data for station", i))
+  }
+}
+ 
 # # data MONALISA
 # path2data <- "/media/alpenv/Projekte/MONALISA/05_Arbeitsbereiche/BrJ/01_data/Stations/"
 # stations <- c("DOMEF1500", "DOMES1500", "DOPAS2000")
@@ -75,11 +84,11 @@ library(DataBaseAlpEnvEURAC)
 #   data_soil[[i]] <- dB_getSWC(path2data = path2data, station = i, aggregation = "h", minVALUE = 0, maxVALUE = 100, write.csv = F)
 #   colnames(data_soil[[i]]) <- c("SWC_A_02", "SWC_A_05", "SWC_A_20")
 # }
-# 
-# save(list = "data_soil", file = "/media/alpenv/Projekte/MONALISA/04_Daten & Ergebnisse/09_Pedotranfer_Function/Data_for_Johannes/data_soil.RData")
 
-# load("/media/alpenv/Projekte/MONALISA/04_Daten & Ergebnisse/09_Pedotranfer_Function/Data_for_Johannes/data_soil.RData")
-load("H:/Projekte/MONALISA/04_Daten & Ergebnisse/09_Pedotranfer_Function/Data_for_Johannes/data_soil.RData")
+save(list = "data_soil", file = "H:/Projekte/MONALISA/04_Daten & Ergebnisse/09_Pedotranfer_Function/Data_for_Johannes/data_soil_test.RData")
+
+# load("H:/Projekte/MONALISA/04_Daten & Ergebnisse/09_Pedotranfer_Function/Data_for_Johannes/data_soil.RData")
+load("H:/Projekte/MONALISA/04_Daten & Ergebnisse/09_Pedotranfer_Function/Data_for_Johannes/data_soil_test.RData")
 
 # soil water retention curve
 # parameter_file <-  "/media/alpenv/Projekte/MONALISA/04_Daten & Ergebnisse/09_Pedotranfer_Function/Data_for_Johannes/soil sample.csv"
@@ -169,12 +178,26 @@ for (i in unique(para$dataName))
       # gg <- Geotop_VisSoilWaterRet_gg(alpha = para_dep$alpha, n = para_dep$n, theta_sat = para_dep$thetaS, theta_res = .05, 
       #                                 accurate = 1, 
       #                                 add_ref_curves = T, observed = obs)
-      gg <- Geotop_VisSoilWaterRet_gg(alpha = para_i$alpha, n = para_i$n, theta_sat = para_i$thetaS, 
-                                      theta_res = rep(.05,length(para_i$alpha)), 
-                                      accurate = 5, 
-                                      add_ref_curves = T, observed = obs_all, colors = colors)
+    
+    alpha = para_i$alpha
+    n = para_i$n
+    theta_sat = para_i$thetaS
+    theta_res = rep(.05,length(para_i$alpha))
+    accurate = 5
+    # soil water pressure head in centimeter / hPa
+    psi <- seq(1,10000000,accurate)
+    # volumetric soil water content in vol% (swc FUN from "soilwater" pkg.)
+    swc <- list()
+    for (i in 1:length(alpha))
+        # swc[[i]] <- swc(psi = -psi, alpha = alpha[i], n = n[i], theta_sat = theta_sat[i], theta_res = theta_res[i]) *100
+    swc[[i]] <- vanGenuchten_swc(psi = -psi, alpha = alpha[i], n = n[i], theta_sat = theta_sat[i], theta_res = theta_res[i]) *100
+    
+      # gg <- Geotop_VisSoilWaterRet_gg(alpha = para_i$alpha, n = para_i$n, theta_sat = para_i$thetaS,
+      #                                 theta_res = rep(.05,length(para_i$alpha)),
+      #                                 accurate = 5,
+      #                                 add_ref_curves = T, observed = obs_all, colors = colors)
       
-      ggsave(gg, filename = paste(i, ".png", sep=""))
+      # ggsave(gg, filename = paste(i, ".png", sep=""))
  
   } else {
     print(paste("no SMC/SWP data for site", i))
