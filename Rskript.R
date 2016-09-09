@@ -90,7 +90,7 @@ save(list = "data_soil", file = "H:/Projekte/MONALISA/04_Daten & Ergebnisse/09_P
 # load("H:/Projekte/MONALISA/04_Daten & Ergebnisse/09_Pedotranfer_Function/Data_for_Johannes/data_soil.RData")
 load("H:/Projekte/MONALISA/04_Daten & Ergebnisse/09_Pedotranfer_Function/Data_for_Johannes/data_soil_test.RData")
 
-# soil water retention curve
+# soil water retention curve (parameter from sample analysis)
 # parameter_file <-  "/media/alpenv/Projekte/MONALISA/04_Daten & Ergebnisse/09_Pedotranfer_Function/Data_for_Johannes/soil sample.csv"
 parameter_file <-  "H:/Projekte/MONALISA/04_Daten & Ergebnisse/09_Pedotranfer_Function/Data_for_Johannes/soil sample.csv"
 para <- read.csv2(file = parameter_file, header = T)
@@ -98,30 +98,64 @@ para <- read.csv2(file = parameter_file, header = T)
 for (i in unique(para$dataName))
 {
   if (i %in% names(data_soil)) {
+    
     print(paste("create figure for site", i))
     para_i <- para[para$dataName == i,]
     
+    # Soil measured parameter (change for each station)
+    alpha = para_i$alpha
+    n = para_i$n
+    theta_sat = para_i$thetaS
+    theta_res = rep(.05,length(para_i$alpha))
+    accurate = 5
+    
+    # # soil water pressure head in centimeter / hPa
+    # psi <- seq(1,10000000,accurate)
+    # 
+    # # SWC in vol%
+    # # SWP in hPa ???
+    # swc <- list()
+    # swp <- list()
+    # 
+    # # index of NAs values
+    # ind_swc = which(is.na(obs$SWC))
+    # ind_swp = which(is.na(obs$SWP))
+    # 
+    # # fill SWC (SWP) NAs where SWP (SWC) is recorded
+    # for (i in 1:length(alpha)) {
+    #     # swc[[i]] <- swc(psi = -psi, alpha = alpha[i], n = n[i], theta_sat = theta_sat[i], theta_res = theta_res[i]) *100
+    #     if ( all(is.na(obs$SWC)) )
+    #         swc[ind_swc] <- vanGenuchten_swc(psi = obs$SWP[ind_swc], alpha = alpha[i], n = n[i], 
+    #                                          theta_sat = theta_sat[i], theta_res = theta_res[i]) *100
+    #     if ( all(is.na(obs$SWP)) )
+    #         swp[ind_swp] <- vanGenuchten_swc(swc = obs$SWC[ind_swp], alpha = alpha[i], n = n[i], 
+    #                                          theta_sat = theta_sat[i], theta_res = theta_res[i], inv = T)
+    # }
+    # 
+    
+    # create total df
     obs_all <- matrix(NA, ncol = 3, dimnames = list(NULL,c("SWC","SWP","depth")))
-    for (dep in as.character(para_i$depth))
+    
+    for (k in 1:length(para_i$depth))
     {
-      print(paste("depth: ", dep, sep=""))
-      #para_dep <- para_i[para_i$depth == dep,]
-      
-      if (!length(grep("BERAT", i))==0) {
+        dep <- as.character(para_i$depth[k])
+        print(paste("depth: ", dep, sep=""))
+        
+        if (!length(grep("BERAT", i))==0) {
         
         depth <- as.integer(strsplit(x = as.character(dep), split = "-")[[1]])[2]
         datanames <- names(data_soil[[i]])
         data2use <- as.integer(substr(datanames, nchar(datanames)-1, nchar(datanames)))
         data2use <- which(data2use == depth)
         
-      } else if (!length(grep("Arduino", i))==0) {
+        } else if (!length(grep("Arduino", i))==0) {
         
         depth <- as.integer(strsplit(x = as.character(dep), split = "-")[[1]])[2]
         datanames <- names(data_soil[[i]])
         data2use <- as.integer(substr(datanames, nchar(datanames)-1, nchar(datanames)))
         data2use <- which(data2use == depth)
         
-      } else {
+        } else {
         
         #depth <- as.integer(strsplit(x = as.character(dep), split = "-")[[1]])
         depths <- as.integer(strsplit(x = as.character(dep), split = "-")[[1]])
@@ -132,75 +166,76 @@ for (i in unique(para$dataName))
         if (min(abs(data2use-depth)) > 10) data2use <- NULL else data2use <- which.min(abs(data2use-depth))
         #data2use <- c(which(data2use == depth))
         
-      }
-      
-      obs <- data_soil[[i]][,data2use]
-      obs_names <- names(data_soil[[i]])[data2use]
-      
-      if (length(data2use)==0) {
-        obs <- data.frame(SWC = coredata(obs), SWP = as.numeric(NA))
-      } else {
-        swc <- grep("SWC", obs_names) 
-        swp <- grep("SWP", obs_names)
-        if (length(swp)==0) SWP <- as.numeric(NA) else {
-          if (is.null(dim(coredata(obs)))) SWP <- coredata(obs) else SWP <- c(coredata(obs)[,swp]) }
-        if (length(swc)==0) SWC <- as.numeric(NA) else {
-          if (is.null(dim(coredata(obs)))) SWC <- coredata(obs) else SWC <- c(coredata(obs)[,swc]) }
+        }
         
+        obs <- data_soil[[i]][,data2use]
+        obs_names <- names(data_soil[[i]])[data2use]
+        
+        if (length(data2use)==0) {
+            obs <- data.frame(SWC = coredata(obs), SWP = as.numeric(NA)) # ????????
+        } else {
+            swc <- grep("SWC", obs_names) 
+            swp <- grep("SWP", obs_names)
+            if (length(swp)==0) SWP <- as.numeric(NA) else {
+                if (is.null(dim(coredata(obs)))) SWP <- coredata(obs) else SWP <- c(coredata(obs)[,swp]) }
+            if (length(swc)==0) SWC <- as.numeric(NA) else {
+                if (is.null(dim(coredata(obs)))) SWC <- coredata(obs) else SWC <- c(coredata(obs)[,swc]) }
+
         obs <- data.frame(SWC=SWC, SWP=SWP)
-      }
-      
-      obs <- as.data.frame(apply(obs, 2, function(x) ifelse(is.nan(x), NA, x)))
-      
-      if(!all(is.na(obs$SWC)))
-        if (mean(obs$SWC, na.rm = TRUE) < 1) obs$SWC <- obs$SWC *100
-      
-      if(!all(is.na(obs$SWP)))
-      {
-        if (mean(obs$SWP, na.rm = TRUE) < 0) obs$SWP <- obs$SWP *(-1)
-        obs$SWP <- ifelse(obs$SWP<=1, NA, obs$SWP)
-      }
-      
-      obs$depth <- depth
-      obs_all <- rbind(obs_all, obs)
+        }
+        
+        # df with NAs instead of NANs
+        obs <- as.data.frame(apply(obs, 2, function(x) ifelse(is.nan(x), NA, x)))
+        
+        # index of NAs values
+        ind_swc = which(is.na(obs$SWC))
+        ind_swp = which(is.na(obs$SWP))
+        
+        # if some NAs compute value with Van Genuchten model
+        swc[ind_swc] <- vanGenuchten_swc(psi = obs$SWP[ind_swc], alpha = alpha[k], n = n[k], 
+                                         theta_sat = theta_sat[k], theta_res = theta_res[k])
+        swp[ind_swp] <- vanGenuchten_swc(swc = obs$SWC[ind_swp], alpha = alpha[k], n = n[k], 
+                                         theta_sat = theta_sat[k], theta_res = theta_res[k], inv = T)
+        
+        # if not NAs rescale in proper range
+        if(!all(is.na(obs$SWC))){
+          if (mean(obs$SWC, na.rm = TRUE) < 1) obs$SWC <- obs$SWC *100
+        }
+        if(!all(is.na(obs$SWP))){
+          if (mean(obs$SWP, na.rm = TRUE) < 0) obs$SWP <- obs$SWP *(-1)
+          obs$SWP <- ifelse(obs$SWP<=1, NA, obs$SWP)
+        }
+        
+        # add depth column and bind to total df
+        obs$depth <- depth
+        obs_all <- rbind(obs_all, obs)
     }
     
     obs_all <- as.data.frame(obs_all[-1,])
     
-    colors <- as.character(para_i$depth)
-    colors <- gsub(pattern = c("0-5"), replacement = c("#999999"), x = colors)
-    colors <- gsub(pattern = c("0-20"), replacement = c("red"), x = colors)
-    colors <- gsub(pattern = c("20-40"), replacement = c("#E69F00"), x = colors)
-    colors <- gsub(pattern = c("40-60"), replacement = c("blue"), x = colors)
-    colors <- gsub(pattern = c("60-80"), replacement = c("darkgreen"), x = colors)
+    # colors <- as.character(para_i$depth)
+    # colors <- gsub(pattern = c("0-5"), replacement = c("#999999"), x = colors)
+    # colors <- gsub(pattern = c("0-20"), replacement = c("red"), x = colors)
+    # colors <- gsub(pattern = c("20-40"), replacement = c("#E69F00"), x = colors)
+    # colors <- gsub(pattern = c("40-60"), replacement = c("blue"), x = colors)
+    # colors <- gsub(pattern = c("60-80"), replacement = c("darkgreen"), x = colors)
       
       
-      # gg <- Geotop_VisSoilWaterRet_gg(alpha = para_dep$alpha, n = para_dep$n, theta_sat = para_dep$thetaS, theta_res = .05, 
-      #                                 accurate = 1, 
-      #                                 add_ref_curves = T, observed = obs)
+    # gg <- Geotop_VisSoilWaterRet_gg(alpha = para_dep$alpha, n = para_dep$n, theta_sat = para_dep$thetaS, theta_res = .05, 
+    #                                 accurate = 1, 
+    #                                 add_ref_curves = T, observed = obs)
     
-    alpha = para_i$alpha
-    n = para_i$n
-    theta_sat = para_i$thetaS
-    theta_res = rep(.05,length(para_i$alpha))
-    accurate = 5
-    # soil water pressure head in centimeter / hPa
-    psi <- seq(1,10000000,accurate)
-    # volumetric soil water content in vol% (swc FUN from "soilwater" pkg.)
-    swc <- list()
-    for (i in 1:length(alpha))
-        # swc[[i]] <- swc(psi = -psi, alpha = alpha[i], n = n[i], theta_sat = theta_sat[i], theta_res = theta_res[i]) *100
-    swc[[i]] <- vanGenuchten_swc(psi = -psi, alpha = alpha[i], n = n[i], theta_sat = theta_sat[i], theta_res = theta_res[i]) *100
     
-      # gg <- Geotop_VisSoilWaterRet_gg(alpha = para_i$alpha, n = para_i$n, theta_sat = para_i$thetaS,
-      #                                 theta_res = rep(.05,length(para_i$alpha)),
-      #                                 accurate = 5,
-      #                                 add_ref_curves = T, observed = obs_all, colors = colors)
-      
-      # ggsave(gg, filename = paste(i, ".png", sep=""))
+    
+    # gg <- Geotop_VisSoilWaterRet_gg(alpha = para_i$alpha, n = para_i$n, theta_sat = para_i$thetaS,
+    #                                 theta_res = rep(.05,length(para_i$alpha)),
+    #                                 accurate = 5,
+    #                                 add_ref_curves = T, observed = obs_all, colors = colors)
+    
+    # ggsave(gg, filename = paste(i, ".png", sep=""))
  
-  } else {
-    print(paste("no SMC/SWP data for site", i))
-  }
-}
+    } else {
+        print(paste("no SMC/SWP data for site", i))
+    }# end IF
+}# end FOR
 
