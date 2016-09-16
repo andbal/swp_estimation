@@ -24,6 +24,7 @@ library(grid)       # enhance base graphics
 library(AnalyseGeotop)          # https://github.com/JBrenn/AnalyseGEOtop
 library(DataBaseAlpEnvEURAC)    # https://github.com/JBrenn/DataBaseAlpEnvEURAC
 source('~/GitHub/AnalyseGEOtop/R/Geotop_VisSoilWaterRet_gg.R')
+source('~/GitHub/DataBaseAlpEnvEURAC/R/vanGenuchten_swc.R')
 
 data_soil <- list()
 
@@ -85,19 +86,21 @@ for (i in stations)
 #   colnames(data_soil[[i]]) <- c("SWC_A_02", "SWC_A_05", "SWC_A_20")
 # }
 
-save(list = "data_soil", file = "H:/Projekte/MONALISA/04_Daten & Ergebnisse/09_Pedotranfer_Function/Data_for_Johannes/data_soil_test.RData")
+save(list = "data_soil", file = "H:/Projekte/MONALISA/04_Daten_Ergebnisse/09_Pedotranfer_Function/Data_for_Johannes/data_soil_test.RData")
 
-# load("H:/Projekte/MONALISA/04_Daten & Ergebnisse/09_Pedotranfer_Function/Data_for_Johannes/data_soil.RData")
-load("H:/Projekte/MONALISA/04_Daten & Ergebnisse/09_Pedotranfer_Function/Data_for_Johannes/data_soil_test.RData")
+# load("H:/Projekte/MONALISA/04_Daten_Ergebnisse/09_Pedotranfer_Function/Data_for_Johannes/data_soil.RData")
+load("H:/Projekte/MONALISA/04_Daten_Ergebnisse/09_Pedotranfer_Function/Data_for_Johannes/data_soil_test.RData")
 
 # soil water retention curve (parameter from sample analysis)
-# parameter_file <-  "/media/alpenv/Projekte/MONALISA/04_Daten & Ergebnisse/09_Pedotranfer_Function/Data_for_Johannes/soil sample.csv"
-parameter_file <-  "H:/Projekte/MONALISA/04_Daten & Ergebnisse/09_Pedotranfer_Function/Data_for_Johannes/soil sample.csv"
+# parameter_file <-  "/media/alpenv/Projekte/MONALISA/04_Daten_Ergebnisse/09_Pedotranfer_Function/Data_for_Johannes/soil sample.csv"
+parameter_file <-  "H:/Projekte/MONALISA/04_Daten_Ergebnisse/09_Pedotranfer_Function/Data_for_Johannes/soil sample.csv"
 para <- read.csv2(file = parameter_file, header = T)
 
 for (i in unique(para$dataName))
 {
-  if (i %in% names(data_soil)) {
+    # %in% is matching operator
+    # return true when left operator match one of right operator elements
+    if (i %in% names(data_soil)) {
     
     print(paste("create figure for site", i))
     para_i <- para[para$dataName == i,]
@@ -135,6 +138,7 @@ for (i in unique(para$dataName))
     
     # create total df
     obs_all <- matrix(NA, ncol = 3, dimnames = list(NULL,c("SWC","SWP","depth")))
+    # obs_myall <- data.frame()
     
     for (k in 1:length(para_i$depth))
     {
@@ -172,53 +176,66 @@ for (i in unique(para$dataName))
         obs_names <- names(data_soil[[i]])[data2use]
         
         if (length(data2use)==0) {
-            obs <- data.frame(SWC = coredata(obs), SWP = as.numeric(NA)) # ???????? why if data2use == 0, obs is not null????
+            # obs <- data.frame(SWC = coredata(obs), SWP = as.numeric(NA)) # ???? why if data2use == 0, obs is not null????
+            obs <- data.frame(SWC = as.numeric(NA), SWP = as.numeric(NA))
         } else {
+            # return 1 if XXX is in obs_names, zero otherwise
             swc <- grep("SWC", obs_names) 
             swp <- grep("SWP", obs_names)
+            # if zero set NA, otherwise set the proper data column
             if (length(swp)==0) SWP <- as.numeric(NA) else {
                 if (is.null(dim(coredata(obs)))) SWP <- coredata(obs) else SWP <- c(coredata(obs)[,swp]) }
             if (length(swc)==0) SWC <- as.numeric(NA) else {
                 if (is.null(dim(coredata(obs)))) SWC <- coredata(obs) else SWC <- c(coredata(obs)[,swc]) }
 
-        obs <- data.frame(SWC=SWC, SWP=SWP)
+            # obs <- data.frame(SWC=SWC, SWP=SWP)
+            # swcname <- paste("SWC_",depth,sep = "")
+            # swpname <- paste("SWP_",depth,sep = "")
+            obs <- data.frame(SWC, SWP)
+            # colnames(obs) <- c(swcname,swpname)
         }
         
-        # df with NAs instead of NANs
+        # omogenize df: use NAs instead of NANs (if exist)
         obs <- as.data.frame(apply(obs, 2, function(x) ifelse(is.nan(x), NA, x)))
         
-       
-        
         # if not NAs rescale in proper range
+        # if SWC [0-1], rescale in [0-100]
         if(!all(is.na(obs$SWC))){
           if (mean(obs$SWC, na.rm = TRUE) < 1) obs$SWC <- obs$SWC *100
         }
+        # if SWP < 0, make it positive (as needed to plot it in log scale)
         if(!all(is.na(obs$SWP))){
           if (mean(obs$SWP, na.rm = TRUE) < 0) obs$SWP <- obs$SWP *(-1)
           obs$SWP <- ifelse(obs$SWP<=1, NA, obs$SWP)
         }
         
+        # Reconstruct SWC/SWP series
+        # fill SWC (SWP) NAs where SWP (SWC) is measured
+        
+        # index of NAs values
+        ind_swc = which(is.na(obs$SWC))
+        ind_swp = which(is.na(obs$SWP))
+        
+        # if NAs compute value with Van Genuchten model
+        if (all(is.na(obs$SWC)))    
+            obs$SWC[ind_swc] <- vanGenuchten_swc(psi = obs$SWP[ind_swc], alpha = alpha[k], n = n[k],
+                                                 theta_sat = theta_sat[k], theta_res = theta_res[k])
+        if (all(is.na(obs$SWP)))
+            obs$SWP[ind_swp] <- -10^(vanGenuchten_swc(swc = obs$SWC[ind_swp], alpha = alpha[k], n = n[k],
+                                                 theta_sat = theta_sat[k], theta_res = theta_res[k], inv = T))
+        
+        # swcname <- paste("SWC_",depth,sep = "")
+        # swpname <- paste("SWP_",depth,sep = "")
+        # colnames(obs) <- c(swcname,swpname)
+
         # add depth column and bind to total df
         obs$depth <- depth
         obs_all <- rbind(obs_all, obs)
+        # obs_myall <- cbind(obs_myall, obs)
     }
     
     obs_all <- as.data.frame(obs_all[-1,])
-    
-    # index of NAs values
-    ind_swc = which(is.na(obs_all$SWC))
-    ind_swp = which(is.na(obs_all$SWP))
-    
-    ### But obs_all have alle the depths, how to solve?
-    for (k in 1:length(alpha)){
-    # if some NAs compute value with Van Genuchten model
-    if (all(is.na(obs_all$SWC)))    
-    obs_all$SWC[ind_swc] <- vanGenuchten_swc(psi = obs_all$SWP[ind_swc], alpha = alpha[k], n = n[k], 
-                                     theta_sat = theta_sat[k], theta_res = theta_res[k])
-    if (all(is.na(obs_all$SWP)))
-    obs_all$SWP[ind_swp] <- vanGenuchten_swc(swc = obs_all$SWC[ind_swp], alpha = alpha[k], n = n[k], 
-                                     theta_sat = theta_sat[k], theta_res = theta_res[k], inv = T)
-    }
+    plot(zoo(obs_all))
     
     # colors <- as.character(para_i$depth)
     # colors <- gsub(pattern = c("0-5"), replacement = c("#999999"), x = colors)
@@ -246,3 +263,4 @@ for (i in unique(para$dataName))
     }# end IF
 }# end FOR
 
+# als <- zoo(obs_all, index(beratdat))
