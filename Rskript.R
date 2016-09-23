@@ -1,7 +1,6 @@
 # Cloned from Johannes Brenner script (github: JBrenn)
 # for MONALISA
 
-
 # Modified version of package can be found on:
 # https://github.com/andbal/DataBaseAlpEnvEURAC
 
@@ -60,7 +59,7 @@ data_soil <- list()
 path2data  <- "H:/Projekte/MONALISA/05_Arbeitsbereiche/BrJ/01_data/Beratungsring/"
 prefix <- "BERAT"
 # station_nr <- c(3,7,9,12,14,17,30,37,39,52,70,84,103,105,106,125,169,171,172,174,176)
-station_nr <- c(3)
+station_nr <- c(3) # testing purpose
 stations <- paste(prefix, formatC(station_nr, width = 4, flag = "0"), sep="")
 
 for (i in stations)
@@ -221,8 +220,8 @@ for (i in unique(para$dataName))
             obs$SWC[ind_swc] <- vanGenuchten_swc(psi = obs$SWP[ind_swc], alpha = alpha[k], n = n[k],
                                                  theta_sat = theta_sat[k], theta_res = theta_res[k])
         if (all(is.na(obs$SWP)))
-            obs$SWP[ind_swp] <- -10^(vanGenuchten_swc(swc = obs$SWC[ind_swp], alpha = alpha[k], n = n[k],
-                                                 theta_sat = theta_sat[k], theta_res = theta_res[k], inv = T))
+            obs$SWP[ind_swp] <- vanGenuchten_swc(swc = obs$SWC[ind_swp], alpha = alpha[k], n = n[k],
+                                                 theta_sat = theta_sat[k], theta_res = theta_res[k], inv = T)
         
         # swcname <- paste("SWC_",depth,sep = "")
         # swpname <- paste("SWP_",depth,sep = "")
@@ -263,4 +262,4 @@ for (i in unique(para$dataName))
     }# end IF
 }# end FOR
 
-# als <- zoo(obs_all, index(beratdat))
+als <- zoo(obs_all, index(beratdat))
